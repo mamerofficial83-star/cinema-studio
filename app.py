@@ -1,55 +1,50 @@
 import streamlit as st
 import google.generativeai as genai
 
-st.set_page_config(page_title="Cinematic Studio Pro", layout="wide")
-st.title("🎬 محرك الإنتاج السينمائي المتكامل")
+# إعداد الصفحة
+st.set_page_config(page_title="Cinema Director AI", layout="wide")
+st.title("🎬 استوديو الإنتاج السينمائي المتكامل")
 
-# إعدادات المستخدم الجانبية
-api_key = st.sidebar.text_input("أدخل مفتاح API:", type="password")
-
-# المدخلات الأساسية
-col1, col2, col3 = st.columns(3)
-with col1:
-    style = st.selectbox("الأسلوب:", ["واقعي", "أنيمي", "دراما تاريخية", "سينمائي كلاسيكي"])
-with col2:
-    ratio = st.selectbox("مقاس الفيديو:", ["16:9", "2.35:1", "9:16"])
-with col3:
+# الشريط الجانبي
+with st.sidebar:
+    api_key = st.text_input("أدخل مفتاح API:", type="password")
+    st.divider()
+    style = st.selectbox("الأسلوب:", ["واقعي", "أنيمي", "دراما تاريخية"])
+    ratio = st.selectbox("مقاس الكادر:", ["16:9", "2.35:1", "9:16"])
     era = st.text_input("الفترة الزمنية:", placeholder="مثلاً: العصر العباسي")
 
-story = st.text_area("القصة:", height=150)
+# المحتوى الرئيسي
+story = st.text_area("أدخل قصتك هنا:", height=200)
 
-# دوال العمل
-def get_model(key):
-    genai.configure(api_key=key)
-    for model_name in ["gemini-1.5-flash", "gemini-1.0-pro"]:
-        try: return genai.GenerativeModel(model_name)
-        except: continue
-    return None
+def generate_production(api_key, style, ratio, era, story):
+    try:
+        genai.configure(api_key=api_key)
+        # نستخدم موديل آمن
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        prompt = f"""
+        أنت مخرج سينمائي محترف.
+        المهمة: كتابة "ستوري بورد" شامل.
+        1. الحقبة: {era} (يجب أن تكون التفاصيل دقيقة تاريخياً).
+        2. الشخصيات: استنتج وصفاً ثابتاً للشخصية بناءً على الحقبة والقصة.
+        3. قاعدة الأنبياء: توهج ذهبي يخفي الملامح إجبارياً.
+        4. الإخراج: جدول (رقم المشهد، وصف المرجع البصري، مطالبة تحريك Veo3).
+        5. الأسلوب: {style} | المقاس: {ratio}.
+        
+        القصة: {story}
+        """
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        return f"خطأ تقني: {str(e)}"
 
-# التحكم بالمراحل
-if 'step' not in st.session_state: st.session_state.step = 1
-
-if st.button("المرحلة 1: تحليل القصة واقتراح الهوية"):
-    model = get_model(api_key)
-    if model:
-        prompt = f"بناءً على الفترة الزمنية '{era}' والقصة '{story}'، اقترح وصفاً دقيقاً للشخصية (ملابس، ملامح) لنستخدمه كمرجع ثابت."
-        st.session_state.proposed_identity = model.generate_content(prompt).text
-        st.session_state.step = 2
-
-if st.session_state.step >= 2:
-    st.session_state.final_identity = st.text_area("تعديل الهوية (المرجع الثابت):", value=st.session_state.get('proposed_identity', ''), height=150)
-    if st.button("المرحلة 2: اعتماد الهوية وتوليد الستوري بورد"):
-        st.session_state.step = 3
-
-if st.session_state.step == 3:
-    st.write("---")
-    st.subheader("نتائج الإنتاج النهائي")
-    model = get_model(api_key)
-    full_prompt = f"""
-    أنت مدير إنتاج. استخرج ستوري بورد من القصة: {story}
-    الهوية البصرية الثابتة: {st.session_state.final_identity}
-    الأسلوب: {style} | المقاس: {ratio} | الحقبة: {era}
-    قاعدة الأنبياء: توهج ذهبي يخفي الملامح.
-    الجدول: (رقم المشهد، وصف المرجع البصري، مطالبة تحريك Veo3).
-    """
-    st.text(model.generate_content(full_prompt).text)
+if st.button("بدء الإنتاج السينمائي"):
+    if not api_key:
+        st.error("يرجى إدخال مفتاح API في القائمة الجانبية.")
+    elif not story or not era:
+        st.error("يرجى ملء القصة والفترة الزمنية.")
+    else:
+        with st.spinner("جاري بناء الاستوديو والإنتاج..."):
+            result = generate_production(api_key, style, ratio, era, story)
+            st.markdown("### 📋 النتيجة:")
+            st.text(result)
