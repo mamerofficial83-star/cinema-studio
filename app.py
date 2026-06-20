@@ -1,36 +1,55 @@
 import streamlit as st
 import google.generativeai as genai
 
-st.set_page_config(page_title="Cinematic Studio: Development Phase", layout="wide")
-st.title("🎬 محرك الإنتاج: مرحلة تطوير الهوية البصرية")
+st.set_page_config(page_title="Cinematic Studio Pro", layout="wide")
+st.title("🎬 محرك الإنتاج السينمائي المتكامل")
 
+# إعدادات المستخدم الجانبية
 api_key = st.sidebar.text_input("أدخل مفتاح API:", type="password")
 
-# بيانات المرحلة الأولى
-era = st.selectbox("الفترة الزمنية:", ["زمن النبوة", "العصر الأموي", "العصر العباسي", "العصر الأندلسي"])
-story = st.text_area("أدخل قصة المشهد (ليستخرج منها الشخصيات):", height=150)
+# المدخلات الأساسية
+col1, col2, col3 = st.columns(3)
+with col1:
+    style = st.selectbox("الأسلوب:", ["واقعي", "أنيمي", "دراما تاريخية", "سينمائي كلاسيكي"])
+with col2:
+    ratio = st.selectbox("مقاس الفيديو:", ["16:9", "2.35:1", "9:16"])
+with col3:
+    era = st.text_input("الفترة الزمنية:", placeholder="مثلاً: العصر العباسي")
 
-# حالة تخزين الشخصيات بعد التعديل
-if 'final_identity' not in st.session_state:
-    st.session_state.final_identity = None
+story = st.text_area("القصة:", height=150)
 
-# المرحلة 1: اقتراح الهوية
-def suggest_identity(era, story, key):
+# دوال العمل
+def get_model(key):
     genai.configure(api_key=key)
-    model = genai.GenerativeModel('gemini-1.5-pro')
-    prompt = f"حلل القصة التالية ووقوعها في {era}. اقترح وصفاً دقيقاً ومفصلاً للشخصية الرئيسية (ملابس، ملامح، أسلوب) ليكون مرجعاً بصرياً. القصة: {story}"
-    return model.generate_content(prompt).text
+    for model_name in ["gemini-1.5-flash", "gemini-1.0-pro"]:
+        try: return genai.GenerativeModel(model_name)
+        except: continue
+    return None
 
-if st.button("اقتراح هوية الشخصيات"):
-    st.session_state.proposed_identity = suggest_identity(era, story, api_key)
+# التحكم بالمراحل
+if 'step' not in st.session_state: st.session_state.step = 1
 
-if 'proposed_identity' in st.session_state:
-    st.info("إليك الهوية المقترحة. يمكنك تعديلها قبل الاعتماد:")
-    st.session_state.final_identity = st.text_area("تعديل الهوية البصرية:", value=st.session_state.proposed_identity, height=150)
-    
-    if st.button("اعتماد الهوية والبدء في وضع خطة العمل"):
-        st.success("تم اعتماد الهوية! الآن سيتم دمجها في كل المشاهد.")
-        # هنا سنبدأ توليد الستوري بورد بناء على st.session_state.final_identity
-        st.write("---")
-        st.subheader("خطة العمل التنفيذية (الستوري بورد)")
-        # استدعاء دالة توليد المشاهد بناء على الهوية المعتمدة (سيتم برمجتها هنا)
+if st.button("المرحلة 1: تحليل القصة واقتراح الهوية"):
+    model = get_model(api_key)
+    if model:
+        prompt = f"بناءً على الفترة الزمنية '{era}' والقصة '{story}'، اقترح وصفاً دقيقاً للشخصية (ملابس، ملامح) لنستخدمه كمرجع ثابت."
+        st.session_state.proposed_identity = model.generate_content(prompt).text
+        st.session_state.step = 2
+
+if st.session_state.step >= 2:
+    st.session_state.final_identity = st.text_area("تعديل الهوية (المرجع الثابت):", value=st.session_state.get('proposed_identity', ''), height=150)
+    if st.button("المرحلة 2: اعتماد الهوية وتوليد الستوري بورد"):
+        st.session_state.step = 3
+
+if st.session_state.step == 3:
+    st.write("---")
+    st.subheader("نتائج الإنتاج النهائي")
+    model = get_model(api_key)
+    full_prompt = f"""
+    أنت مدير إنتاج. استخرج ستوري بورد من القصة: {story}
+    الهوية البصرية الثابتة: {st.session_state.final_identity}
+    الأسلوب: {style} | المقاس: {ratio} | الحقبة: {era}
+    قاعدة الأنبياء: توهج ذهبي يخفي الملامح.
+    الجدول: (رقم المشهد، وصف المرجع البصري، مطالبة تحريك Veo3).
+    """
+    st.text(model.generate_content(full_prompt).text)
