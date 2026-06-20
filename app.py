@@ -1,51 +1,46 @@
 import streamlit as st
 import google.generativeai as genai
 
-st.set_page_config(page_title="Cinematic Pro Studio", layout="centered")
-st.title("🎬 محرك الإنتاج السينمائي الاحترافي")
+st.set_page_config(page_title="Cinematic Identity Engine", layout="wide")
+st.title("🎬 محرك الإنتاج بالهوية البصرية الثابتة")
 
-api_key = st.sidebar.text_input("أدخل مفتاح API (من Google AI Studio):", type="password")
-style = st.selectbox("الأسلوب السينمائي:", ["واقعي", "أنيمي", "دراما تاريخية"])
-ratio = st.selectbox("مقاس الكادر:", ["16:9", "2.35:1", "9:16"])
-story = st.text_area("ضع القصة هنا (سطر لكل مشهد):", height=200)
+# الشريط الجانبي
+api_key = st.sidebar.text_input("أدخل مفتاح API:", type="password")
 
-def generate_scenes(story_text, style_val, ratio_val, key):
-    try:
-        genai.configure(api_key=key)
-        
-        # البحث عن النماذج المتاحة واختيار أحدها
-        models = [m for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        if not models:
-            return "خطأ: لم يتم العثور على نماذج متاحة."
-        
-        # استخدام أول موديل متاح يدعم المحتوى
-        model = genai.GenerativeModel(models[0].name)
-        
-        prompt = f"""
-        أنت مدير إنتاج سينمائي خبير. قم بتنفيذ التالي:
-        1. قسّم القصة المرفقة إلى وحدات من 9 سطور (مشاهد).
-        2. لكل مشهد: اكتب (مطالبة صورة مرجعية) + (مطالبة Veo3 للتحريك).
-        3. التعليمات الإجبارية:
-           - لا موسيقى، لا حوارات، فقط مؤثرات بيئية.
-           - ثبات تام للشخصيات وزوايا كاميرا متنوعة.
-           - زمن التحريك: 8 ثوانٍ بدقة واقعية.
-           - اللغة: عربية فقط.
-        القصة: {story_text}
-        الأسلوب: {style_val}
-        المقاس: {ratio_val}
-        """
-        response = model.generate_content(prompt)
-        return response.text
-    except Exception as e:
-        return f"حدث خطأ: {str(e)}"
+# إعدادات الهوية الثابتة
+st.subheader("إعدادات الهوية الثابتة")
+identity_desc = st.text_area("أدخل الوصف الدقيق للشخصية (سيتكرر في كل المشاهد):", 
+                             placeholder="مثال: رجل نحيل، لحية خفيفة سوداء، يرتدي ثوباً قطنياً طويلاً باللون البيج...")
+era = st.selectbox("الفترة الزمنية:", ["زمن النبوة", "العصر الأموي", "العصر العباسي"])
 
-if st.button("بدء الإنتاج"):
-    if not api_key:
-        st.error("يرجى إدخال مفتاح API.")
+# القصة
+story = st.text_area("القصة (اكتب الأحداث):", height=200)
+
+def generate_fixed_identity_board(identity, era, story, key):
+    genai.configure(api_key=key)
+    model = genai.GenerativeModel('gemini-1.5-pro')
+    
+    prompt = f"""
+    أنت مخرج سينمائي. مهمتك إنتاج ستوري بورد يعتمد على هوية بصرية ثابتة.
+    
+    الهوية الثابتة التي يجب دمجها في كل مشهد: {identity}
+    الفترة الزمنية: {era}
+    
+    البروتوكول الإجباري:
+    1. في كل مطالبة (سواء للصورة أو للتحريك)، ابدأ بـ: "Fixed Character Identity: {identity}, Context: {era}..."
+    2. قاعدة الأنبياء: إذا ظهر نبي، استبدل الوصف بـ: "Golden Glow Effect concealing all facial features, figure in historical attire of {era}".
+    3. المخرجات: جدول من (رقم المشهد، مطالبة توليد الصورة، مطالبة تحريك Veo3).
+    4. التعليمات: لا موسيقى، لا حوار، تحريك احترافي 8 ثوانٍ، واقعي.
+    
+    القصة: {story}
+    """
+    return model.generate_content(prompt).text
+
+if st.button("بدء الإنتاج بالهوية الثابتة"):
+    if api_key and identity_desc and story:
+        with st.spinner("جاري دمج الهوية في المشاهد..."):
+            board = generate_fixed_identity_board(identity_desc, era, story, api_key)
+            st.markdown("### 📋 الستوري بورد المعتمد:")
+            st.text(board)
     else:
-        with st.spinner("جاري الاتصال واختيار الموديل المتاح..."):
-            result = generate_scenes(story, style, ratio, api_key)
-            st.markdown("### 📋 النتائج:")
-            st.write(result)
-        st.markdown("### 📋 نتائج الإنتاج:")
-        st.write(result)
+        st.error("يرجى إدخال المفتاح ووصف الشخصية والقصة.")
