@@ -16,7 +16,7 @@ story = st.text_area("ضع القصة هنا (سطر لكل مشهد):", height=
 def generate_scenes(story_text, style_val, ratio_val, key):
     try:
         genai.configure(api_key=key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-1.5-pro')
         
         prompt = f"""
         أنت مدير إنتاج سينمائي خبير. قم بتنفيذ التالي:
