@@ -1,50 +1,35 @@
 import streamlit as st
 import google.generativeai as genai
 
-# إعداد الصفحة
 st.set_page_config(page_title="Cinema Director AI", layout="wide")
-st.title("🎬 استوديو الإنتاج السينمائي المتكامل")
+st.title("🎬 استوديو الإنتاج السينمائي")
 
-# الشريط الجانبي
-with st.sidebar:
-    api_key = st.text_input("أدخل مفتاح API:", type="password")
-    st.divider()
-    style = st.selectbox("الأسلوب:", ["واقعي", "أنيمي", "دراما تاريخية"])
-    ratio = st.selectbox("مقاس الكادر:", ["16:9", "2.35:1", "9:16"])
-    era = st.text_input("الفترة الزمنية:", placeholder="مثلاً: العصر العباسي")
+api_key = st.sidebar.text_input("أدخل مفتاح API:", type="password")
 
-# المحتوى الرئيسي
-story = st.text_area("أدخل قصتك هنا:", height=200)
-
-def generate_production(api_key, style, ratio, era, story):
+if api_key:
+    genai.configure(api_key=api_key)
+    # البحث عن الموديلات المتاحة في حسابك
     try:
-        genai.configure(api_key=api_key)
-        # نستخدم موديل آمن
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        
-        prompt = f"""
-        أنت مخرج سينمائي محترف.
-        المهمة: كتابة "ستوري بورد" شامل.
-        1. الحقبة: {era} (يجب أن تكون التفاصيل دقيقة تاريخياً).
-        2. الشخصيات: استنتج وصفاً ثابتاً للشخصية بناءً على الحقبة والقصة.
-        3. قاعدة الأنبياء: توهج ذهبي يخفي الملامح إجبارياً.
-        4. الإخراج: جدول (رقم المشهد، وصف المرجع البصري، مطالبة تحريك Veo3).
-        5. الأسلوب: {style} | المقاس: {ratio}.
-        
-        القصة: {story}
-        """
-        response = model.generate_content(prompt)
-        return response.text
-    except Exception as e:
-        return f"خطأ تقني: {str(e)}"
+        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        if not available_models:
+            st.error("لم يتم العثور على أي موديلات متاحة في مفتاحك. تأكد من تفعيل Google Generative AI API في Google Cloud.")
+        else:
+            # نختار أول موديل متاح مهما كان اسمه
+            selected_model = available_models[0]
+            st.write(f"تم العثور على موديل متاح: {selected_model}")
+            
+            # باقي الإعدادات
+            style = st.selectbox("الأسلوب:", ["واقعي", "أنيمي", "دراما تاريخية"])
+            ratio = st.selectbox("مقاس الكادر:", ["16:9", "2.35:1", "9:16"])
+            era = st.text_input("الفترة الزمنية:")
+            story = st.text_area("القصة:")
 
-if st.button("بدء الإنتاج السينمائي"):
-    if not api_key:
-        st.error("يرجى إدخال مفتاح API في القائمة الجانبية.")
-    elif not story or not era:
-        st.error("يرجى ملء القصة والفترة الزمنية.")
-    else:
-        with st.spinner("جاري بناء الاستوديو والإنتاج..."):
-            result = generate_production(api_key, style, ratio, era, story)
-            st.markdown("### 📋 النتيجة:")
-            st.text(result)
+            if st.button("بدء الإنتاج"):
+                model = genai.GenerativeModel(selected_model)
+                prompt = f"المهمة: كتابة ستوري بورد. الحقبة: {era}. الأسلوب: {style}. القصة: {story}. قاعدة الأنبياء: توهج ذهبي."
+                response = model.generate_content(prompt)
+                st.text(response.text)
+    except Exception as e:
+        st.error(f"خطأ في الاتصال: {str(e)}")
+else:
+    st.info("الرجاء إدخال مفتاح API في القائمة الجانبية.")
